@@ -50,8 +50,15 @@ public class LiveScoreAPIServlet extends HttpServlet {
             }
 
             result.addProperty("live", true);
+            result.addProperty("eventId", liveEvent.getId());
             result.addProperty("eventName", liveEvent.getEventName());
+            result.addProperty("venue", liveEvent.getVenue());
+            result.addProperty("eventDate", liveEvent.getEventDate());
+            result.addProperty("currentRound", liveEvent.getCurrentRound());
+            result.addProperty("totalRounds", liveEvent.getTotalRounds());
+            result.addProperty("videoUrl", liveEvent.getVideoUrl() != null ? liveEvent.getVideoUrl() : "");
             result.addProperty("bullName", activeBull.getBullName());
+            result.addProperty("bullBreed", activeBull.getBreed() != null ? activeBull.getBreed() : "");
             result.addProperty("bullScore", activeBull.getTotalScore());
 
             if (activeBull.getCaughtByPlayerId() != null) {

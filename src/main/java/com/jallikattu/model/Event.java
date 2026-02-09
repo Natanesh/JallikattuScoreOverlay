@@ -10,6 +10,7 @@ public class Event {
     private String status;
     private int totalRounds;
     private int currentRound;
+    private String videoUrl;
     private Timestamp createdAt;
     private Timestamp updatedAt;
 
@@ -29,6 +30,8 @@ public class Event {
     public void setTotalRounds(int totalRounds) { this.totalRounds = totalRounds; }
     public int getCurrentRound() { return currentRound; }
     public void setCurrentRound(int currentRound) { this.currentRound = currentRound; }
+    public String getVideoUrl() { return videoUrl; }
+    public void setVideoUrl(String videoUrl) { this.videoUrl = videoUrl; }
     public Timestamp getCreatedAt() { return createdAt; }
     public void setCreatedAt(Timestamp createdAt) { this.createdAt = createdAt; }
     public Timestamp getUpdatedAt() { return updatedAt; }

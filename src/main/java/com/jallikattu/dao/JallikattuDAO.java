@@ -23,7 +23,7 @@ public class JallikattuDAO {
 
     // ======================== EVENT CRUD ========================
     public int createEvent(Event event) throws SQLException {
-        String sql = "INSERT INTO events (event_name, venue, event_date, status, total_rounds) VALUES (?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO events (event_name, venue, event_date, status, total_rounds, video_url) VALUES (?, ?, ?, ?, ?, ?)";
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setString(1, event.getEventName());
@@ -31,6 +31,7 @@ public class JallikattuDAO {
             ps.setString(3, event.getEventDate());
             ps.setString(4, event.getStatus() != null ? event.getStatus() : "UPCOMING");
             ps.setInt(5, event.getTotalRounds() > 0 ? event.getTotalRounds() : 3);
+            ps.setString(6, event.getVideoUrl());
             ps.executeUpdate();
             ResultSet rs = ps.getGeneratedKeys();
             return rs.next() ? rs.getInt(1) : -1;
@@ -269,14 +270,19 @@ public class JallikattuDAO {
     }
 
     public List<Player> getPlayersByRound(int eventId, int roundNumber) throws SQLException {
-        String sql = "SELECT * FROM players WHERE event_id = ? AND round_number = ? ORDER BY id";
+        String sql = "SELECT p.*, COALESCE(bc.cnt, 0) AS catch_count FROM players p " +
+                     "LEFT JOIN (SELECT caught_by_player_id, COUNT(*) AS cnt FROM bulls " +
+                     "WHERE event_id = ? AND status = 'COMPLETED' AND caught_by_player_id IS NOT NULL " +
+                     "GROUP BY caught_by_player_id) bc ON p.id = bc.caught_by_player_id " +
+                     "WHERE p.event_id = ? AND p.round_number = ? ORDER BY p.id";
         List<Player> list = new ArrayList<>();
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, eventId);
-            ps.setInt(2, roundNumber);
+            ps.setInt(2, eventId);
+            ps.setInt(3, roundNumber);
             ResultSet rs = ps.executeQuery();
-            while (rs.next()) list.add(mapPlayer(rs));
+            while (rs.next()) list.add(mapPlayerWithCatchCount(rs));
         }
         return list;
     }
@@ -293,18 +299,40 @@ public class JallikattuDAO {
         return list;
     }
 
-    public List<Player> getFinalRoundPlayers(int eventId, int topPerRound) throws SQLException {
-        String sql = "SELECT * FROM (" +
-                     "  SELECT *, ROW_NUMBER() OVER (PARTITION BY round_number ORDER BY total_score DESC) as rn " +
-                     "  FROM players WHERE event_id = ?" +
-                     ") sub WHERE rn <= ? ORDER BY total_score DESC";
+    public List<Player> getTopPlayersOverall(int eventId, int limit) throws SQLException {
+        String sql = "SELECT p.*, COALESCE(bc.cnt, 0) AS catch_count FROM players p " +
+                     "LEFT JOIN (SELECT caught_by_player_id, COUNT(*) AS cnt FROM bulls " +
+                     "WHERE event_id = ? AND status = 'COMPLETED' AND caught_by_player_id IS NOT NULL " +
+                     "GROUP BY caught_by_player_id) bc ON p.id = bc.caught_by_player_id " +
+                     "WHERE p.event_id = ? ORDER BY p.total_score DESC, COALESCE(bc.cnt, 0) DESC LIMIT ?";
         List<Player> list = new ArrayList<>();
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, eventId);
-            ps.setInt(2, topPerRound);
+            ps.setInt(2, eventId);
+            ps.setInt(3, limit);
             ResultSet rs = ps.executeQuery();
-            while (rs.next()) list.add(mapPlayer(rs));
+            while (rs.next()) list.add(mapPlayerWithCatchCount(rs));
+        }
+        return list;
+    }
+
+    public List<Player> getFinalRoundPlayers(int eventId, int topPerRound) throws SQLException {
+        String sql = "SELECT sub.*, COALESCE(bc.cnt, 0) AS catch_count FROM (" +
+                     "  SELECT *, ROW_NUMBER() OVER (PARTITION BY round_number ORDER BY total_score DESC) as rn " +
+                     "  FROM players WHERE event_id = ?" +
+                     ") sub LEFT JOIN (SELECT caught_by_player_id, COUNT(*) AS cnt FROM bulls " +
+                     "WHERE event_id = ? AND status = 'COMPLETED' AND caught_by_player_id IS NOT NULL " +
+                     "GROUP BY caught_by_player_id) bc ON sub.id = bc.caught_by_player_id " +
+                     "WHERE sub.rn <= ? ORDER BY sub.total_score DESC";
+        List<Player> list = new ArrayList<>();
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, eventId);
+            ps.setInt(2, eventId);
+            ps.setInt(3, topPerRound);
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) list.add(mapPlayerWithCatchCount(rs));
         }
         return list;
     }
@@ -364,6 +392,38 @@ public class JallikattuDAO {
         }
     }
 
+    // ======================== UNDO SUPPORT ========================
+    public ScoreEntry getLastScoreEntryForBull(int bullId) throws SQLException {
+        String sql = "SELECT * FROM score_history WHERE bull_id = ? ORDER BY id DESC LIMIT 1";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, bullId);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                ScoreEntry se = new ScoreEntry();
+                se.setId(rs.getInt("id"));
+                se.setEventId(rs.getInt("event_id"));
+                se.setBullId(rs.getInt("bull_id"));
+                se.setPlayerId(rs.getObject("player_id") != null ? rs.getInt("player_id") : null);
+                se.setScoreType(rs.getString("score_type"));
+                se.setScoreValue(rs.getInt("score_value"));
+                se.setRoundNumber(rs.getInt("round_number"));
+                se.setRecordedAt(rs.getTimestamp("recorded_at"));
+                return se;
+            }
+            return null;
+        }
+    }
+
+    public boolean deleteScoreEntry(int entryId) throws SQLException {
+        String sql = "DELETE FROM score_history WHERE id = ?";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, entryId);
+            return ps.executeUpdate() > 0;
+        }
+    }
+
     // ======================== ANALYTICS ========================
     public List<Bull> getBullAnalytics(int eventId) throws SQLException {
         String sql = "SELECT b.*, p.player_name AS caught_by_name FROM bulls b " +
@@ -380,13 +440,18 @@ public class JallikattuDAO {
     }
 
     public List<Player> getPlayerAnalytics(int eventId) throws SQLException {
-        String sql = "SELECT * FROM players WHERE event_id = ? ORDER BY total_score DESC";
+        String sql = "SELECT p.*, COALESCE(bc.cnt, 0) AS catch_count FROM players p " +
+                     "LEFT JOIN (SELECT caught_by_player_id, COUNT(*) AS cnt FROM bulls " +
+                     "WHERE event_id = ? AND status = 'COMPLETED' AND caught_by_player_id IS NOT NULL " +
+                     "GROUP BY caught_by_player_id) bc ON p.id = bc.caught_by_player_id " +
+                     "WHERE p.event_id = ? ORDER BY p.total_score DESC";
         List<Player> list = new ArrayList<>();
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, eventId);
+            ps.setInt(2, eventId);
             ResultSet rs = ps.executeQuery();
-            while (rs.next()) list.add(mapPlayer(rs));
+            while (rs.next()) list.add(mapPlayerWithCatchCount(rs));
         }
         return list;
     }
@@ -402,6 +467,7 @@ public class JallikattuDAO {
         e.setStatus(rs.getString("status"));
         e.setTotalRounds(rs.getInt("total_rounds"));
         e.setCurrentRound(rs.getInt("current_round"));
+        e.setVideoUrl(rs.getString("video_url"));
         e.setCreatedAt(rs.getTimestamp("created_at"));
         e.setUpdatedAt(rs.getTimestamp("updated_at"));
         return e;
@@ -436,6 +502,12 @@ public class JallikattuDAO {
         p.setVillage(rs.getString("village"));
         p.setRoundNumber(rs.getInt("round_number"));
         p.setTotalScore(rs.getInt("total_score"));
+        return p;
+    }
+
+    private Player mapPlayerWithCatchCount(ResultSet rs) throws SQLException {
+        Player p = mapPlayer(rs);
+        try { p.setCatchCount(rs.getInt("catch_count")); } catch (SQLException ignored) {}
         return p;
     }
 }

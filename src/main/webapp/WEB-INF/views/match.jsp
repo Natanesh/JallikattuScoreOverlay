@@ -24,7 +24,9 @@
                     <c:forEach var="r" begin="1" end="${event.totalRounds}">
                         <option value="${r}" ${r == event.currentRound ? 'selected' : ''}>Round ${r}</option>
                     </c:forEach>
-                    <option value="${event.totalRounds + 1}" ${event.currentRound > event.totalRounds ? 'selected' : ''}>Final</option>
+                    <option value="${event.totalRounds + 1}" ${event.currentRound == event.totalRounds + 1 ? 'selected' : ''}>Quarter Final</option>
+                    <option value="${event.totalRounds + 2}" ${event.currentRound == event.totalRounds + 2 ? 'selected' : ''}>Semi Final</option>
+                    <option value="${event.totalRounds + 3}" ${event.currentRound == event.totalRounds + 3 ? 'selected' : ''}>Final</option>
                 </select>
             </div>
             <button onclick="viewAnalytics()" class="btn btn-sm btn-primary">View Analytics</button>
@@ -69,6 +71,7 @@
                     </tbody>
                 </table>
                 <div class="overlay-actions">
+                    <button id="undoBtn" onclick="undoAction()" class="btn btn-sm btn-undo" style="display:none" title="Undo last action">&#x21A9; Undo</button>
                     <button id="clearPlayerBtn" onclick="clearPlayer()" class="btn btn-sm btn-danger" style="display:none">&#x2715; Clear Player</button>
                     <button id="nextBtn" onclick="nextBull()" class="btn btn-warning btn-next">Next &rarr;</button>
                 </div>
@@ -121,7 +124,7 @@
                 <div class="card">
                     <h3>&#x1F3C3; Player Rankings</h3>
                     <table class="data-table" id="playerAnalyticsTable">
-                        <thead><tr><th>#</th><th>Player</th><th>Village</th><th>Round</th><th>Score</th></tr></thead>
+                        <thead><tr><th>#</th><th>Player</th><th>Village</th><th>Round</th><th>Catches</th><th>Score</th></tr></thead>
                         <tbody></tbody>
                     </table>
                 </div>

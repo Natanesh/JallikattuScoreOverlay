@@ -41,13 +41,8 @@ public class MatchAPIServlet extends HttpServlet {
                 List<Bull> waitingBulls = dao.getWaitingBulls(eventId);
                 List<Bull> completedBulls = dao.getCompletedBulls(eventId);
 
-                // Players based on current round
-                List<Player> players;
-                if (event.getCurrentRound() > event.getTotalRounds()) {
-                    players = dao.getFinalRoundPlayers(eventId, 3);
-                } else {
-                    players = dao.getPlayersByRound(eventId, event.getCurrentRound());
-                }
+                // Players based on current round (handles QF / SF / Final)
+                List<Player> players = getPlayersForRound(eventId, event.getCurrentRound(), event.getTotalRounds());
 
                 boolean matchComplete = activeBull == null && waitingBulls.isEmpty();
                 if (matchComplete && "LIVE".equals(event.getStatus())) {
@@ -66,5 +61,19 @@ public class MatchAPIServlet extends HttpServlet {
             result.addProperty("error", e.getMessage());
         }
         resp.getWriter().write(result.toString());
+    }
+
+    /** Helper: get players for the given round, handling QF/SF/Final */
+    private List<Player> getPlayersForRound(int eventId, int round, int totalRounds) throws Exception {
+        int offset = round - totalRounds;
+        if (offset == 1) {         // Quarter Final – top 6
+            return dao.getTopPlayersOverall(eventId, 6);
+        } else if (offset == 2) {  // Semi Final – top 4
+            return dao.getTopPlayersOverall(eventId, 4);
+        } else if (offset >= 3) {  // Final – top 2
+            return dao.getTopPlayersOverall(eventId, 2);
+        } else {
+            return dao.getPlayersByRound(eventId, round);
+        }
     }
 }

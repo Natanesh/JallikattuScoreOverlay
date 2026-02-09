@@ -46,6 +46,7 @@ public class AdminServlet extends HttpServlet {
                 event.setEventDate(req.getParameter("eventDate"));
                 String rounds = req.getParameter("totalRounds");
                 event.setTotalRounds(rounds != null && !rounds.isEmpty() ? Integer.parseInt(rounds) : 3);
+                event.setVideoUrl(req.getParameter("videoUrl"));
                 dao.createEvent(event);
             } else if ("updateStatus".equals(action)) {
                 int eventId = Integer.parseInt(req.getParameter("eventId"));

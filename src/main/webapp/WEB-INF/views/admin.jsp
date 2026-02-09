@@ -44,6 +44,10 @@
                     <label>Total Rounds</label>
                     <input type="number" name="totalRounds" value="3" min="1" max="10" required>
                 </div>
+                <div class="form-group">
+                    <label>YouTube Video URL</label>
+                    <input type="text" name="videoUrl" placeholder="e.g. https://www.youtube.com/watch?v=xxxxx">
+                </div>
                 <button type="submit" class="btn btn-primary">+ Create Event</button>
             </form>
         </div>
@@ -81,6 +85,7 @@
                                     </td>
                                     <td class="actions">
                                         <a href="${pageContext.request.contextPath}/event?id=${event.id}" class="btn btn-sm btn-primary">Manage</a>
+                                        <a href="${pageContext.request.contextPath}/overlay?eventId=${event.id}" target="_blank" class="btn btn-sm" style="background:linear-gradient(135deg,#6c5ce7,#a29bfe);color:#fff;">&#x1F4FA; Watch Live</a>
                                         <c:if test="${event.status == 'UPCOMING'}">
                                             <form method="post" action="${pageContext.request.contextPath}/admin" style="display:inline">
                                                 <input type="hidden" name="action" value="updateStatus">

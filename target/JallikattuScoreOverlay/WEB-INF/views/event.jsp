@@ -13,8 +13,8 @@
     <nav class="navbar">
         <div class="nav-brand">&#x1F402; ${event.eventName}</div>
         <div class="nav-links">
+            <a href="${pageContext.request.contextPath}/overlay?eventId=${event.id}" target="_blank" class="btn btn-sm" style="background:linear-gradient(135deg,#6c5ce7,#a29bfe);color:#fff;">&#x1F4FA; Watch Live</a>
             <a href="${pageContext.request.contextPath}/admin" class="btn btn-sm">&larr; Dashboard</a>
-            <a href="${pageContext.request.contextPath}/overlay" target="_blank" class="btn btn-sm">Live Overlay</a>
         </div>
     </nav>
 

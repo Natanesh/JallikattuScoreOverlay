@@ -14,6 +14,11 @@ let state = {
   currentRound: 1,
 };
 
+// ===== Undo Stack =====
+// Tracks actions within the current bull session. Cleared on next bull / bull load.
+// Each entry: { action: 'score'|'selectPlayer'|'clearPlayer', ...params }
+let undoStack = [];
+
 // ===== Init =====
 generateScoreButtons();
 loadMatchState();
@@ -78,6 +83,7 @@ function loadMatchState() {
         updateRoundLabel(data.event.currentRound);
       }
 
+      undoStack = []; // Clear undo stack when bull is loaded/reloaded
       renderAll();
     })
     .catch(function (err) {
@@ -91,9 +97,28 @@ function renderAll() {
   renderOverlay();
   renderScoreButtons();
   renderCompleted();
+  renderUndoButton();
 
   if (state.matchComplete) {
     disableAll();
+  }
+}
+
+function renderUndoButton() {
+  var btn = document.getElementById("undoBtn");
+  if (!state.matchComplete && state.activeBull) {
+    btn.style.display = "inline-block";
+    if (undoStack.length > 0) {
+      btn.disabled = false;
+      btn.style.opacity = "1";
+      btn.title = "Undo: " + undoStack[undoStack.length - 1].label;
+    } else {
+      btn.disabled = true;
+      btn.style.opacity = "0.4";
+      btn.title = "Nothing to undo";
+    }
+  } else {
+    btn.style.display = "none";
   }
 }
 
@@ -146,6 +171,9 @@ function renderPlayerList() {
       '<span class="item-name">' +
       escapeHtml(p.playerName) +
       "</span>" +
+      '<span class="item-catch-count" title="Bulls caught">' +
+      (p.catchCount || 0) +
+      " &#x1F402;</span>" +
       '<span class="item-score">' +
       p.totalScore +
       "</span>" +
@@ -249,7 +277,12 @@ function renderCompleted() {
 }
 
 function updateRoundLabel(round) {
-  var label = round > totalRounds ? "Final" : "Round " + round;
+  var offset = round - totalRounds;
+  var label;
+  if (offset === 1) label = "Quarter Final";
+  else if (offset === 2) label = "Semi Final";
+  else if (offset >= 3) label = "Final";
+  else label = "Round " + round;
   document.getElementById("roundLabel").textContent = "(" + label + ")";
 }
 
@@ -262,6 +295,10 @@ function selectPlayer(playerId, playerName, playerScore) {
     playerName: playerName,
     totalScore: playerScore,
   };
+
+  // Track previous player for undo
+  var prevPlayerId = state.activeBull.caughtByPlayerId || null;
+  var prevPlayerName = state.activeBull.caughtByPlayerName || null;
 
   // Update bull's caught_by in DB
   fetch(ctx + "/api/score", {
@@ -278,18 +315,33 @@ function selectPlayer(playerId, playerName, playerScore) {
     })
     .then(function (data) {
       if (data.success) {
+        undoStack.push({
+          action: "selectPlayer",
+          bullId: state.activeBull.id,
+          prevPlayerId: prevPlayerId,
+          prevPlayerName: prevPlayerName,
+          label: "Select " + playerName,
+        });
         state.activeBull.caughtByPlayerId = playerId;
         state.activeBull.caughtByPlayerName = playerName;
         state.selectedPlayer.totalScore = data.playerScore;
         renderOverlay();
         renderScoreButtons();
         renderPlayerList();
+        renderUndoButton();
       }
     });
 }
 
 function clearPlayer() {
   if (state.matchComplete || !state.activeBull) return;
+
+  var prevPlayerId =
+    state.activeBull.caughtByPlayerId ||
+    (state.selectedPlayer ? state.selectedPlayer.id : null);
+  var prevPlayerName =
+    state.activeBull.caughtByPlayerName ||
+    (state.selectedPlayer ? state.selectedPlayer.playerName : null);
 
   fetch(ctx + "/api/score", {
     method: "POST",
@@ -301,12 +353,20 @@ function clearPlayer() {
     })
     .then(function (data) {
       if (data.success) {
+        undoStack.push({
+          action: "clearPlayer",
+          bullId: state.activeBull.id,
+          prevPlayerId: prevPlayerId,
+          prevPlayerName: prevPlayerName,
+          label: "Clear " + (prevPlayerName || "player"),
+        });
         state.selectedPlayer = null;
         state.activeBull.caughtByPlayerId = null;
         state.activeBull.caughtByPlayerName = null;
         renderOverlay();
         renderScoreButtons();
         renderPlayerList();
+        renderUndoButton();
       }
     });
 }
@@ -342,18 +402,30 @@ function addScore(type, value) {
     })
     .then(function (data) {
       if (data.success) {
+        var undoLabel = "";
         if (type === "bullScore") {
           state.activeBull.totalScore = data.bullScore;
+          undoLabel = "Bull +" + value;
         } else if (type === "playerScore") {
           state.selectedPlayer.totalScore = data.playerScore;
           updatePlayerInList(state.selectedPlayer.id, data.playerScore);
+          undoLabel = "Player +" + value;
         } else if (type === "penalty") {
           state.selectedPlayer.totalScore = data.playerScore;
-          state.activeBull.totalScore = data.bullScore;
           updatePlayerInList(state.selectedPlayer.id, data.playerScore);
+          undoLabel = "Penalty -" + value;
         }
+        undoStack.push({
+          action: "score",
+          scoreType: type,
+          bullId: state.activeBull.id,
+          playerId: state.selectedPlayer ? state.selectedPlayer.id : null,
+          value: value,
+          label: undoLabel,
+        });
         renderOverlay();
         renderPlayerList();
+        renderUndoButton();
       }
     });
 }
@@ -380,6 +452,7 @@ function nextBull() {
     .then(function (data) {
       if (data.success) {
         state.selectedPlayer = null;
+        undoStack = []; // Clear undo stack on next bull
         loadMatchState();
       }
     });
@@ -433,6 +506,9 @@ function viewAnalytics() {
           p.roundNumber +
           "</td>" +
           '<td class="score-cell">' +
+          (p.catchCount || 0) +
+          "</td>" +
+          '<td class="score-cell">' +
           p.totalScore +
           "</td></tr>";
       }
@@ -467,6 +543,138 @@ function viewAnalytics() {
 
 function closeAnalytics() {
   document.getElementById("analyticsModal").style.display = "none";
+}
+
+// ===== Undo =====
+function undoAction() {
+  if (undoStack.length === 0 || state.matchComplete || !state.activeBull)
+    return;
+
+  var entry = undoStack.pop();
+
+  if (entry.action === "score") {
+    fetch(ctx + "/api/score", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body:
+        "action=undoScore&bullId=" +
+        state.activeBull.id +
+        "&eventId=" +
+        eventId,
+    })
+      .then(function (r) {
+        return r.json();
+      })
+      .then(function (data) {
+        if (data.success) {
+          state.activeBull.totalScore = data.bullScore;
+          if (
+            data.playerId &&
+            state.selectedPlayer &&
+            state.selectedPlayer.id === data.playerId
+          ) {
+            state.selectedPlayer.totalScore = data.playerScore;
+          }
+          // Refresh full player list from server
+          if (data.players) {
+            state.players = data.players;
+          }
+          renderOverlay();
+          renderPlayerList();
+          renderUndoButton();
+        } else {
+          undoStack.push(entry);
+          renderUndoButton();
+        }
+      })
+      .catch(function () {
+        undoStack.push(entry);
+        renderUndoButton();
+      });
+  } else if (entry.action === "selectPlayer") {
+    fetch(ctx + "/api/score", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body:
+        "action=undoSelectPlayer&bullId=" +
+        state.activeBull.id +
+        "&eventId=" +
+        eventId +
+        "&prevPlayerId=" +
+        (entry.prevPlayerId || ""),
+    })
+      .then(function (r) {
+        return r.json();
+      })
+      .then(function (data) {
+        if (data.success) {
+          if (data.cleared) {
+            state.selectedPlayer = null;
+            state.activeBull.caughtByPlayerId = null;
+            state.activeBull.caughtByPlayerName = null;
+          } else {
+            state.activeBull.caughtByPlayerId = data.restoredPlayerId;
+            state.activeBull.caughtByPlayerName = data.restoredPlayerName;
+            state.selectedPlayer = {
+              id: data.restoredPlayerId,
+              playerName: data.restoredPlayerName,
+              totalScore: data.restoredPlayerScore,
+            };
+          }
+          if (data.players) {
+            state.players = data.players;
+          }
+          renderOverlay();
+          renderScoreButtons();
+          renderPlayerList();
+          renderUndoButton();
+        } else {
+          undoStack.push(entry);
+          renderUndoButton();
+        }
+      })
+      .catch(function () {
+        undoStack.push(entry);
+        renderUndoButton();
+      });
+  } else if (entry.action === "clearPlayer") {
+    if (entry.prevPlayerId) {
+      fetch(ctx + "/api/score", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body:
+          "action=selectPlayer&bullId=" +
+          state.activeBull.id +
+          "&playerId=" +
+          entry.prevPlayerId,
+      })
+        .then(function (r) {
+          return r.json();
+        })
+        .then(function (data) {
+          if (data.success) {
+            state.activeBull.caughtByPlayerId = entry.prevPlayerId;
+            state.activeBull.caughtByPlayerName = entry.prevPlayerName;
+            state.selectedPlayer = {
+              id: entry.prevPlayerId,
+              playerName: entry.prevPlayerName || data.playerName,
+              totalScore: data.playerScore,
+            };
+            renderOverlay();
+            renderScoreButtons();
+            renderPlayerList();
+            renderUndoButton();
+          } else {
+            undoStack.push(entry);
+            renderUndoButton();
+          }
+        })
+        .catch(function () {
+          undoStack.push(entry);
+          renderUndoButton();
+        });
+    }
+  }
 }
 
 // ===== Helpers =====

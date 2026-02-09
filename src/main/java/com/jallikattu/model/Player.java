@@ -7,6 +7,7 @@ public class Player {
     private String village;
     private int roundNumber;
     private int totalScore;
+    private int catchCount;
 
     public Player() { this.roundNumber = 1; }
 
@@ -22,4 +23,6 @@ public class Player {
     public void setRoundNumber(int roundNumber) { this.roundNumber = roundNumber; }
     public int getTotalScore() { return totalScore; }
     public void setTotalScore(int totalScore) { this.totalScore = totalScore; }
+    public int getCatchCount() { return catchCount; }
+    public void setCatchCount(int catchCount) { this.catchCount = catchCount; }
 }

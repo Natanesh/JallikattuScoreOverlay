@@ -79,13 +79,10 @@ public class ScoreUpdateServlet extends HttpServlet {
                     int eventId = Integer.parseInt(req.getParameter("eventId"));
                     int round = Integer.parseInt(req.getParameter("round"));
                     dao.updatePlayerScore(playerId, -value);
-                    dao.updateBullScore(bullId, 10);
                     dao.addScoreEntry(eventId, bullId, playerId, "PENALTY", value, round);
                     Player p = dao.getPlayerById(playerId);
-                    Bull b = dao.getBullById(bullId);
                     json.addProperty("success", true);
                     json.addProperty("playerScore", p.getTotalScore());
-                    json.addProperty("bullScore", b.getTotalScore());
                     break;
                 }
                 case "next": {
@@ -115,24 +112,94 @@ public class ScoreUpdateServlet extends HttpServlet {
                     int eventId = Integer.parseInt(req.getParameter("eventId"));
                     int round = Integer.parseInt(req.getParameter("round"));
                     dao.updateCurrentRound(eventId, round);
-                    List<Player> players;
                     Event event = dao.getEventById(eventId);
-                    if (round > event.getTotalRounds()) {
-                        players = dao.getFinalRoundPlayers(eventId, 3);
-                    } else {
-                        players = dao.getPlayersByRound(eventId, round);
-                    }
+                    List<Player> players = getPlayersForRound(eventId, round, event.getTotalRounds());
                     json.addProperty("success", true);
                     json.addProperty("currentRound", round);
                     json.add("players", gson.toJsonTree(players));
+                    break;
+                }
+                case "undoScore": {
+                    int bullId = Integer.parseInt(req.getParameter("bullId"));
+                    int eventId = Integer.parseInt(req.getParameter("eventId"));
+                    ScoreEntry lastEntry = dao.getLastScoreEntryForBull(bullId);
+                    if (lastEntry != null) {
+                        switch (lastEntry.getScoreType()) {
+                            case "BULL":
+                                dao.updateBullScore(bullId, -lastEntry.getScoreValue());
+                                break;
+                            case "PLAYER":
+                                if (lastEntry.getPlayerId() != null)
+                                    dao.updatePlayerScore(lastEntry.getPlayerId(), -lastEntry.getScoreValue());
+                                break;
+                            case "PENALTY":
+                                if (lastEntry.getPlayerId() != null)
+                                    dao.updatePlayerScore(lastEntry.getPlayerId(), lastEntry.getScoreValue());
+                                break;
+                        }
+                        dao.deleteScoreEntry(lastEntry.getId());
+                        Bull b = dao.getBullById(bullId);
+                        json.addProperty("success", true);
+                        json.addProperty("bullScore", b.getTotalScore());
+                        json.addProperty("undoneType", lastEntry.getScoreType());
+                        if (lastEntry.getPlayerId() != null) {
+                            Player p = dao.getPlayerById(lastEntry.getPlayerId());
+                            json.addProperty("playerScore", p.getTotalScore());
+                            json.addProperty("playerId", lastEntry.getPlayerId());
+                        }
+                        // Return refreshed player list for UI sync
+                        Event event = dao.getEventById(eventId);
+                        List<Player> players = getPlayersForRound(eventId, event.getCurrentRound(), event.getTotalRounds());
+                        json.add("players", gson.toJsonTree(players));
+                    } else {
+                        json.addProperty("success", false);
+                        json.addProperty("error", "Nothing to undo");
+                    }
+                    break;
+                }
+                case "undoSelectPlayer": {
+                    int bullId = Integer.parseInt(req.getParameter("bullId"));
+                    int eventId = Integer.parseInt(req.getParameter("eventId"));
+                    String prevPlayerIdStr = req.getParameter("prevPlayerId");
+                    if (prevPlayerIdStr != null && !prevPlayerIdStr.isEmpty() && !"null".equals(prevPlayerIdStr)) {
+                        int prevPlayerId = Integer.parseInt(prevPlayerIdStr);
+                        dao.selectCatcher(bullId, prevPlayerId);
+                        Player p = dao.getPlayerById(prevPlayerId);
+                        json.addProperty("success", true);
+                        json.addProperty("restoredPlayerId", prevPlayerId);
+                        json.addProperty("restoredPlayerName", p.getPlayerName());
+                        json.addProperty("restoredPlayerScore", p.getTotalScore());
+                    } else {
+                        dao.clearCatcher(bullId);
+                        json.addProperty("success", true);
+                        json.addProperty("cleared", true);
+                    }
+                    // Return refreshed player list
+                    Event ev = dao.getEventById(eventId);
+                    List<Player> plrs = getPlayersForRound(eventId, ev.getCurrentRound(), ev.getTotalRounds());
+                    json.add("players", gson.toJsonTree(plrs));
                     break;
                 }
                 default:
                     json.addProperty("error", "Unknown action: " + action);
             }
         } catch (Exception e) {
-            json.addProperty("error", "Failed: " + e.getMessage());
+            json.addProperty("error", e.getMessage());
         }
         resp.getWriter().write(json.toString());
+    }
+
+    /** Helper: get players for the given round, handling QF/SF/Final */
+    private List<Player> getPlayersForRound(int eventId, int round, int totalRounds) throws Exception {
+        int offset = round - totalRounds;
+        if (offset == 1) {         // Quarter Final – top 6
+            return dao.getTopPlayersOverall(eventId, 6);
+        } else if (offset == 2) {  // Semi Final – top 4
+            return dao.getTopPlayersOverall(eventId, 4);
+        } else if (offset >= 3) {  // Final – top 2
+            return dao.getTopPlayersOverall(eventId, 2);
+        } else {
+            return dao.getPlayersByRound(eventId, round);
+        }
     }
 }

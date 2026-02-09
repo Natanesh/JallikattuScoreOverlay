@@ -97,6 +97,16 @@
   text-align: right;
 }
 
+.item-catch-count {
+  font-size: 0.75em;
+  color: #00b894;
+  font-weight: 700;
+  background: rgba(0, 184, 148, 0.15);
+  padding: 2px 6px;
+  border-radius: 10px;
+  margin-left: 4px;
+}
+
 .empty-item {
   padding: 20px;
   text-align: center;
@@ -163,6 +173,28 @@
   padding: 10px 30px;
   font-size: 1.1em;
   font-weight: 800;
+}
+
+.btn-undo {
+  background: linear-gradient(135deg, #636e72, #2d3436);
+  border: 2px solid #fdcb6e;
+  color: #fdcb6e;
+  padding: 8px 18px;
+  font-size: 0.95em;
+  font-weight: 700;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-right: auto;
+}
+.btn-undo:hover {
+  background: linear-gradient(135deg, #818c8e, #3d4446);
+  border-color: #ffeaa7;
+  color: #ffeaa7;
+  transform: scale(1.05);
+}
+.btn-undo:active {
+  transform: scale(0.95);
 }
 
 .btn-clear {
