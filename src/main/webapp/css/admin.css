@@ -1,0 +1,102 @@
+/* ===== Global Reset & Base ===== */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #0f0f23; color: #e0e0e0; line-height: 1.6; }
+a { text-decoration: none; color: inherit; }
+
+/* ===== Navbar ===== */
+.navbar { display: flex; justify-content: space-between; align-items: center; padding: 12px 24px;
+          background: linear-gradient(135deg, #1a1a2e, #16213e); border-bottom: 2px solid #e94560; }
+.nav-brand { font-size: 1.3em; font-weight: 800; color: #e94560; }
+.nav-links { display: flex; align-items: center; gap: 10px; }
+.nav-user { color: #aaa; font-size: 0.9em; margin-right: 10px; }
+
+/* ===== Container ===== */
+.container { max-width: 1200px; margin: 20px auto; padding: 0 20px; }
+
+/* ===== Cards ===== */
+.card { background: #16213e; border-radius: 12px; padding: 24px; margin-bottom: 20px;
+        border: 1px solid #1a1a4e; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+.card h2 { margin-bottom: 16px; color: #e94560; font-size: 1.3em; }
+
+/* ===== Buttons ===== */
+.btn { display: inline-block; padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer;
+       font-weight: 600; font-size: 0.9em; transition: all 0.2s; color: white; }
+.btn-primary { background: #0984e3; }
+.btn-primary:hover { background: #0767b5; }
+.btn-success { background: #00b894; }
+.btn-success:hover { background: #009d7f; }
+.btn-warning { background: #fdcb6e; color: #2d3436; }
+.btn-warning:hover { background: #f0b93b; }
+.btn-danger { background: #e94560; }
+.btn-danger:hover { background: #c0392b; }
+.btn-full { width: 100%; }
+.btn-sm { padding: 6px 14px; font-size: 0.8em; border-radius: 6px; }
+.btn-xs { padding: 3px 8px; font-size: 0.75em; border-radius: 4px; }
+
+/* ===== Forms ===== */
+.form-group { margin-bottom: 14px; }
+.form-group label { display: block; margin-bottom: 4px; font-weight: 600; font-size: 0.85em; color: #aaa; }
+.form-group input, .form-group select { width: 100%; padding: 10px 14px; border: 1px solid #2d3a5e;
+                                          border-radius: 8px; background: #0f0f23; color: #e0e0e0;
+                                          font-size: 0.95em; outline: none; }
+.form-group input:focus, .form-group select:focus { border-color: #e94560; box-shadow: 0 0 0 3px rgba(233,69,96,0.2); }
+
+.form-inline { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+.form-inline .form-group { margin-bottom: 0; }
+.form-inline .form-group input, .form-inline .form-group select { min-width: 180px; }
+
+.form-compact { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+.form-compact input, .form-compact select { padding: 8px 10px; border: 1px solid #2d3a5e; border-radius: 6px;
+                                              background: #0f0f23; color: #e0e0e0; font-size: 0.85em; }
+
+/* ===== Tables ===== */
+.data-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+.data-table th { background: #0f0f23; padding: 10px 14px; text-align: left; font-size: 0.8em;
+                  text-transform: uppercase; color: #888; border-bottom: 2px solid #1a1a4e; }
+.data-table td { padding: 10px 14px; border-bottom: 1px solid #1a1a3e; font-size: 0.9em; }
+.data-table tr:hover { background: rgba(233,69,96,0.05); }
+.data-table.compact td, .data-table.compact th { padding: 6px 10px; }
+
+.score-cell { font-weight: 800; font-size: 1.1em; color: #fdcb6e; }
+.bull-score { color: #ff6b35; }
+.player-score { color: #74b9ff; }
+.vs-cell { text-align: center; font-weight: 900; color: #e94560; }
+.row-live { background: rgba(233,69,96,0.1) !important; border-left: 3px solid #e94560; }
+.actions { white-space: nowrap; }
+
+/* ===== Badges ===== */
+.badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.75em;
+         font-weight: 700; text-transform: uppercase; }
+.badge-live { background: #e94560; color: white; animation: pulse-badge 1.5s infinite; }
+.badge-done { background: #00b894; color: white; }
+.badge-wait { background: #636e72; color: white; }
+.badge-info { background: #0984e3; color: white; }
+@keyframes pulse-badge { 0%,100%{opacity:1} 50%{opacity:0.6} }
+
+/* ===== Alerts ===== */
+.alert { padding: 12px 18px; border-radius: 8px; margin-bottom: 16px; font-size: 0.9em; }
+.alert-danger { background: rgba(233,69,96,0.15); border: 1px solid #e94560; color: #ff7675; }
+
+/* ===== Event Info ===== */
+.event-info { display: flex; gap: 20px; align-items: center; margin-bottom: 20px; padding: 12px 20px;
+              background: #16213e; border-radius: 8px; border: 1px solid #1a1a4e; }
+
+/* ===== Grid ===== */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+@media (max-width: 768px) { .grid-2 { grid-template-columns: 1fr; } }
+
+/* ===== Login Page ===== */
+.login-body { display: flex; justify-content: center; align-items: center; min-height: 100vh;
+              background: linear-gradient(135deg, #0f0f23, #1a1a2e); }
+.login-container { background: #16213e; padding: 40px; border-radius: 16px; width: 400px;
+                   border: 1px solid #e94560; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
+.login-header { text-align: center; margin-bottom: 30px; }
+.login-header h1 { color: #e94560; font-size: 1.8em; }
+.login-header p { color: #888; }
+.login-footer { text-align: center; margin-top: 20px; }
+.login-footer a { color: #0984e3; font-size: 0.9em; }
+.login-footer a:hover { color: #74b9ff; }
+
+/* ===== Misc ===== */
+.empty-msg { color: #636e72; text-align: center; padding: 20px; font-style: italic; }
+.text-muted { color: #636e72; }
